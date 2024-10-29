@@ -94,11 +94,9 @@ class Tokenizer:
 
         num_merges = vocab_size-256
 
+        curr_num_bar = 0
+        last_time = time()
         for i in range(num_merges):
-            # Get time for debug
-            if debug:
-                last_time = time()
-
             # Get maximum pair (considering counter)
             _, pair = Tokenizer.get_stats(tokens)
 
@@ -112,11 +110,15 @@ class Tokenizer:
             # Update tokens
             tokens = Tokenizer.merge_pair(tokens, pair, idx)
 
+            
             # -------- Debug ---------
             if debug:
                 num_bars = 50 * (i + 1) // num_merges
-                print(f"[{'-' * num_bars}{' ' * (50 - num_bars)}] {100 * (i + 1) / num_merges}%,"
-                      f" time = {time()-last_time}")
+                if curr_num_bar < num_bars:
+                  curr_num_bar = num_bars
+                  print(f"[{'-' * num_bars}{' ' * (50 - num_bars)}] {100 * (i + 1) / num_merges}%,"
+                        f" time = {time()-last_time}")
+                  last_time = time()
 
         # Save vocabulary and merges
         self.vocab = vocab
