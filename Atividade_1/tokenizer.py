@@ -7,16 +7,17 @@ class Tokenizer:
         self.merges = {}
 
     @staticmethod
-    def get_stats(tokens: list[int]) -> (defaultdict[int], (int, int)):
+    def get_stats(tokens: list[int]) -> tuple[dict[tuple[int, int], int],
+                                              tuple[int, int]]:
         # Initialize variables
         max_pair = (0, 0)
         max_count = 0
-        pair_counter = defaultdict(int)
+        pair_counter = {}
 
-        # For each pair (tokens[i], tokens[i+1]
+        # For each pair (tokens[i], tokens[i+1])
         for pair in zip(tokens, tokens[1:]):
             # Increase pair counter
-            pair_counter[pair] += 1
+            pair_counter[pair] = pair_counter.get(pair, 0) + 1
             count = pair_counter[pair]
 
             # Update max pair
@@ -57,31 +58,6 @@ class Tokenizer:
         # Returns a new tokens
         return res
 
-    def train(self, text: str, vocab_size: int) -> None:
-        # Initialize variables
-        num_merges = vocab_size-256
-        tokens = [i for i in text.encode("utf-8")]
-        merges = {}
-        vocab = {i: bytes([i]) for i in range(256)}
-
-        for i in range(num_merges):
-            # Get maximum pair (considering counter)
-            _, pair = Tokenizer.get_stats(tokens)
-
-            # New id
-            id = 256+i
-
-            # Update vocabulary and merges
-            merges[pair] = id
-            vocab[id] = vocab[pair[0]] + vocab[pair[1]]
-
-            # Update tokens
-            tokens = Tokenizer.merge_pair(tokens, pair, id)
-
-        # Save vocabulary and merges
-        self.vocab = vocab
-        self.merges = merges
-
     def decode(self, tokens: list[int]) -> str:
         # Get byte-stream from tokens
         text_bytes = b"".join(self.vocab[t] for t in tokens)
@@ -106,6 +82,51 @@ class Tokenizer:
             tokens = Tokenizer.merge_pair(tokens, pair, id)
         # Return tokens
         return tokens
+
+    def train(self, text: str, vocab_size: int, reuse_tokenizer=False) -> None:
+        # Initialize variables depending on reusing tokenizer
+        if reuse_tokenizer:
+            offset = len(self.vocab)
+            tokens = self.encode(text)
+            merges = self.merges
+            vocab = self.vocab
+        else:
+            offset = 0
+            tokens = [i for i in text.encode("utf-8")]
+            merges = {}
+            vocab = {i: bytes([i]) for i in range(256)}
+
+        num_merges = vocab_size-256-offset
+
+        for i in range(num_merges):
+            # Get maximum pair (considering counter)
+            _, pair = Tokenizer.get_stats(tokens)
+
+            # New id
+            id = 256+i+offset
+
+            # Update vocabulary and merges
+            merges[pair] = id
+            vocab[id] = vocab[pair[0]] + vocab[pair[1]]
+
+            # Update tokens
+            tokens = Tokenizer.merge_pair(tokens, pair, id)
+
+
+        # Save vocabulary and merges
+        self.vocab = vocab
+        self.merges = merges
+
+    def text_to_tokens(self, text: str) -> str:
+        string_buffer = []
+        # Encode text
+        tokens = self.encode(text)
+        # Create string separating tokens
+        for t in tokens:
+            string_buffer.append("[ ")
+            string_buffer.append(self.vocab[t].decode("utf-8", errors="replace"))
+            string_buffer.append(" ]")
+        return "".join(string_buffer)
 
 if __name__ == "__main__":
     string = "agdsvavbavavavd"
