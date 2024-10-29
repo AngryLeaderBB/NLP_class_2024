@@ -1,4 +1,4 @@
-from collections import defaultdict
+from time import time
 
 
 class Tokenizer:
@@ -68,7 +68,10 @@ class Tokenizer:
         # Initialize tokens
         tokens = [i for i in text.encode("utf-8")]
 
-        while len(tokens) >= 2:
+        n = len(tokens)
+        for _ in range(n):
+            if len(tokens) < 2:
+                break
             # Get counter dict (pair->num_repetition)
             counter, _ = Tokenizer.get_stats(tokens)
             # Minimum valid pair
@@ -77,41 +80,43 @@ class Tokenizer:
                 break
 
             # Get byte id
-            id = self.merges[pair]
+            idx = self.merges[pair]
             # Update tokens
-            tokens = Tokenizer.merge_pair(tokens, pair, id)
+            tokens = Tokenizer.merge_pair(tokens, pair, idx)
         # Return tokens
         return tokens
 
-    def train(self, text: str, vocab_size: int, reuse_tokenizer=False) -> None:
-        # Initialize variables depending on reusing tokenizer
-        if reuse_tokenizer:
-            offset = len(self.vocab)
-            tokens = self.encode(text)
-            merges = self.merges
-            vocab = self.vocab
-        else:
-            offset = 0
-            tokens = [i for i in text.encode("utf-8")]
-            merges = {}
-            vocab = {i: bytes([i]) for i in range(256)}
+    def train(self, text: str, vocab_size: int, debug=False) -> None:
+        # Initialize variables
+        tokens = [i for i in text.encode("utf-8")]
+        merges = {}
+        vocab = {i: bytes([i]) for i in range(256)}
 
-        num_merges = vocab_size-256-offset
+        num_merges = vocab_size-256
 
         for i in range(num_merges):
+            # Get time for debug
+            if debug:
+                last_time = time()
+
             # Get maximum pair (considering counter)
             _, pair = Tokenizer.get_stats(tokens)
 
             # New id
-            id = 256+i+offset
+            idx = 256+i
 
             # Update vocabulary and merges
-            merges[pair] = id
-            vocab[id] = vocab[pair[0]] + vocab[pair[1]]
+            merges[pair] = idx
+            vocab[idx] = vocab[pair[0]] + vocab[pair[1]]
 
             # Update tokens
-            tokens = Tokenizer.merge_pair(tokens, pair, id)
+            tokens = Tokenizer.merge_pair(tokens, pair, idx)
 
+            # -------- Debug ---------
+            if debug:
+                num_bars = 50 * (i + 1) // num_merges
+                print(f"[{'-' * num_bars}{' ' * (50 - num_bars)}] {100 * (i + 1) / num_merges}%,"
+                      f" time = {time()-last_time}")
 
         # Save vocabulary and merges
         self.vocab = vocab
@@ -139,4 +144,3 @@ if __name__ == "__main__":
     b = a.encode(string)
     print(b)
     print(a.decode(b))
-
