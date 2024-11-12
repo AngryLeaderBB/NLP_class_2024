@@ -1,6 +1,3 @@
-from audioop import error
-from collections.abc import Callable
-from typing import Any
 from random import randint
 from time import time
 import torch
@@ -71,14 +68,15 @@ class Bigram:
         return probs
 
 
-    def __init__(self):
+    def __init__(self, max_tokens: int = 200000):
+        self.max_tokens = max_tokens # Max tokens for token list (avoids memory extravaganza)
         self.token_to_idx = {}  # Token to index dict
         self.idx_to_token = {}  # Index to token dict
         self.probabilities = torch.zeros([]) # Probabilities tensor
 
     def train(self, base_text: str, debug:bool = False, fill_val: int = 0):
         # Generate token list
-        token_list = Bigram.encode(base_text)
+        token_list = Bigram.encode(base_text)[:self.max_tokens]
 
         # Generate token to index and index to token dicts
         self.token_to_idx, self.idx_to_token = Bigram.generate_token_dicts(token_list)
