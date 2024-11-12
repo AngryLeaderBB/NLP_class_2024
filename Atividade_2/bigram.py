@@ -103,7 +103,7 @@ class Bigram:
             # Add to buffer the decoding of the index
             token_list.append(self.idx_to_token[idx])
 
-            # if row equal to nan chose random
+            # If row equal to nan chose random
             if torch.isnan(self.probabilities[idx][0]):
                 idx = torch.randint(0, len(self.token_to_idx), (1,), generator=g).item()
                 continue
@@ -115,13 +115,29 @@ class Bigram:
         # Join the string
         return Bigram.decode(token_list)
 
+    def __probability_pair(self, t1:int, t2:int):
+        # If not in valid tokens approximate to zero
+        if t1 not in self.token_to_idx or \
+            t2 not in self.token_to_idx:
+            return 1e-5
+
+        prob = self.probabilities[self.token_to_idx[t1], self.token_to_idx[t2]]
+
+        # If it can't get pair via probabilities, it was generated from an invalid/random try
+        # Check generate_text
+        if torch.isnan(prob):
+            return 1/len(self.token_to_idx)
+
+        # Valid probability of pair t1, t2
+        return prob
+
     def perplexity(self, word: str) -> float:
         # Tokens of the word
         tokens = Bigram.encode(word)
 
         # List of probabilities: [P(w_1), P(w_2| w_1), P(w_3| w_2), ..., P(w_n| w_{n-1})]
         word_prob = torch.tensor([1/len(self.token_to_idx)] +
-                                 [self.probabilities[self.token_to_idx[t1], self.token_to_idx[t2]]
+                                 [self.__probability_pair(t1, t2)
                                     for t1, t2 in zip(tokens, tokens[1: ])])
 
         # Assert length word probabilities to total number of tokens
