@@ -54,15 +54,22 @@ class BestParam:
         pd.DataFrame(class_test).to_csv(self.target_path + 
                         '/class_test.csv', index=False)
 
-    def train_models(self, cv):
+    def greedy_search(self, cv):
         # Read train data
         texts = csr_matrix(pd.read_csv(self.target_path + '/text_train.csv'))
         classes = pd.read_csv(self.target_path + '/class_train.csv').squeeze()
 
         # Models and parameters
-        models = [('MultinomialNB', MultinomialNB(), {'alpha': np.logspace(-3, 3, 7), 'fit_prior': [True, False]}),
-                  ('LogisticRegression', LogisticRegression(), {'C': [0.1, 1, 10], 'solver': ['lbfgs', 'liblinear']}),
-                  ('SVC', SVC(), {'C': [0.1, 1, 10], 'kernel': ['linear', 'rbf']})
+        models = [('MultinomialNB', MultinomialNB(), 
+                    {'alpha': np.logspace(-3, 3, 7),
+                    'fit_prior': [True, False]}),
+
+                  ('LogisticRegression', LogisticRegression(), 
+                    {'C': [0.01, 0.1, 1, 10, 100],
+                    'solver': ['lbfgs', 'liblinear', 'saga']}),
+
+                  ('SVC', SVC(), {'C': [0.01, 0.1, 1, 10, 100],
+                   'kernel': ['linear', 'rbf', 'poly']})
                 ]
 
         res = []
@@ -83,7 +90,7 @@ class BestParam:
                 "Mean Test Score": mean_score,
               })
 
-        # Ordena os resultados por nome depois por melhor score
+        # Sort the results based on name then on test score
         res.sort(key=lambda x: (x["Model"], -x["Mean Test Score"]))
 
         # Save the Data Frame into a csv
